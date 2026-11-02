@@ -13,6 +13,7 @@
     "migrate:test": "cross-env RUN_ON_TEST_DB=1 node server/src/db/migrate.js",
     "seed": "node server/src/db/seed.js",
     "seed:load-test": "cross-env NODE_ENV=test node server/src/db/seedLoadTest.js",
+    "demo:photos": "node scripts/add-demo-photo-profiles.mjs",
     "test": "cross-env NODE_ENV=test vitest run",
     "lint": "node scripts/lint.mjs",
     "smoke": "cross-env NODE_ENV=test node scripts/e2e-smoke.mjs",
