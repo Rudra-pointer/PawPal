@@ -7,7 +7,7 @@ dist/
 server/dist/
 client/dist/
 coverage/
-uploads/
+/uploads/
 
 *.log
 *.tsbuildinfo
