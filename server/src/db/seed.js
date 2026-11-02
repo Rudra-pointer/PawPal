@@ -6,13 +6,13 @@ import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { pathToFileURL } from 'node:url';
 import { env } from '../config/env.js';
+import { buildDatabaseConnectionConfig } from './connectionConfig.js';
 import { SEED_USERS, SEED_SHELTERS, SEED_APPLICATIONS } from './seedData.js';
 
-const pool = new pg.Pool({
-  connectionString: env.NODE_ENV === 'test' ? env.TEST_DATABASE_URL : env.DATABASE_URL,
+const databaseUrl = env.NODE_ENV === 'test' ? env.TEST_DATABASE_URL : env.DATABASE_URL;
+const pool = new pg.Pool(buildDatabaseConnectionConfig(databaseUrl, env.NODE_ENV, {
   max: 3,
-  ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
-});
+}));
 
 const COST = env.NODE_ENV === 'production' ? 12 : 10;
 

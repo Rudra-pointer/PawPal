@@ -12,8 +12,6 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
-      - key: SEED_PASSWORD
-        sync: false
       - key: COOKIE_SECURE
         value: "true"
       - key: TRUST_PROXY

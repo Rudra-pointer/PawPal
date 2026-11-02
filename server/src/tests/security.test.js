@@ -96,7 +96,7 @@ describe('Prompt 7 security hardening', () => {
       env: {
         ...process.env,
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgres://invalid:invalid@localhost:5432/pawpal',
+        DATABASE_URL: 'postgres://unused:unused@ep-test.invalid.neon.tech/not_used?sslmode=verify-full',
         JWT_SECRET: 'a-random-production-test-secret-with-more-than-32-chars',
         SEED_PASSWORD: demoPassword,
       },

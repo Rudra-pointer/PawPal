@@ -2,26 +2,20 @@
 // pg connection pool. Exports query() and withTransaction().
 import pg from 'pg';
 import { env } from '../config/env.js';
+import { buildDatabaseConnectionConfig } from './connectionConfig.js';
 
 const { Pool } = pg;
-
-function buildPoolConfig(url) {
-  const ssl = url.includes('sslmode=require') ? { rejectUnauthorized: false } : false;
-  return {
-    connectionString: url,
-    max: 10,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
-    ssl,
-  };
-}
 
 const databaseUrl = env.NODE_ENV === 'test' ? env.TEST_DATABASE_URL : env.DATABASE_URL;
 if (!databaseUrl) throw new Error('TEST_DATABASE_URL is required in test mode');
 if (env.NODE_ENV === 'test' && new URL(databaseUrl).pathname !== '/pawpal_test') {
   throw new Error('Automated tests may connect only to the pawpal_test database.');
 }
-export const pool = new Pool(buildPoolConfig(databaseUrl));
+export const pool = new Pool(buildDatabaseConnectionConfig(databaseUrl, env.NODE_ENV, {
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 10_000,
+}));
 
 pool.on('error', err => {
   console.error('[pool] Unexpected client error:', err.message);

@@ -4,8 +4,8 @@ PawPal's production topology is one Node web service plus a managed PostgreSQL d
 
 ## Before deployment
 
-1. Provision a PostgreSQL 13+ database and run the numbered migrations with the migration command appropriate to that database.
-2. Configure `DATABASE_URL`, a unique random `JWT_SECRET` (at least 32 characters), and a private `SEED_PASSWORD` in the host dashboard. Never put credentials in `render.yaml` or Git.
+1. Provision a PostgreSQL 18.6 database and run the numbered migrations with the migration command appropriate to that database.
+2. Configure `DATABASE_URL` and a unique random `JWT_SECRET` (at least 32 characters) in the host dashboard. Never put credentials in `render.yaml` or Git. `SEED_PASSWORD` is only used for intentional manual seeding; set a unique private value before such an operation. It is not required for application startup.
 3. Set `NODE_ENV=production`, `COOKIE_SECURE=true`, and `TRUST_PROXY=true` when the service is behind Render's proxy.
 4. Do not run the demo seed on production unless you have reviewed the data and explicitly pass `--force`.
 

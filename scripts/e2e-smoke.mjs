@@ -105,7 +105,7 @@ async function verifyProductionServer() {
       ...process.env,
       NODE_ENV: 'production',
       PORT: String(port),
-      DATABASE_URL: 'postgres://unused:unused@127.0.0.1:5432/not_used_by_static_smoke',
+      DATABASE_URL: 'postgres://unused:unused@ep-static-smoke.invalid.neon.tech/not_used_by_static_smoke?sslmode=verify-full',
       JWT_SECRET: 'production-smoke-only-random-secret-value-over-32',
       COOKIE_SECURE: 'true',
       TRUST_PROXY: 'true',
