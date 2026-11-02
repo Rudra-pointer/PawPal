@@ -1,0 +1,358 @@
+@baseUrl = http://localhost:5000
+@petId = 00000000-0000-4000-8000-000000000001
+@shelterId = 00000000-0000-4000-8000-000000000002
+@applicationId = 00000000-0000-4000-8000-000000000003
+@reportId = 00000000-0000-4000-8000-000000000004
+@photoId = 00000000-0000-4000-8000-000000000005
+@vaccinationId = 00000000-0000-4000-8000-000000000006
+@documentId = 00000000-0000-4000-8000-000000000007
+@userId = 00000000-0000-4000-8000-000000000008
+@cookie = paste-pawpal_token-cookie-here
+
+### Health
+GET {{baseUrl}}/api/health
+
+### Auth: check email and user ID availability
+GET {{baseUrl}}/api/auth/availability?email=alex@example.test
+GET {{baseUrl}}/api/auth/availability?userCode=alex_rivera
+
+### Auth: register adopter or shelter role
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{"name":"Alex Rivera","email":"alex@example.test","userCode":"alex_rivera","password":"ExamplePass123","role":"adopter"}
+
+### Auth: login with email or user ID; copy the pawpal_token response cookie
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"identifier":"alex@example.test","password":"ExamplePass123"}
+
+### Auth: restore session
+GET {{baseUrl}}/api/auth/me
+Cookie: {{cookie}}
+
+### Auth: logout
+POST {{baseUrl}}/api/auth/logout
+Cookie: {{cookie}}
+
+### Pet discovery: list, search, filter, sort, paginate
+GET {{baseUrl}}/api/pets?page=1&pageSize=12&species=dog&status=available&city=Portland&q=gentle&sort=newest
+
+### Pet discovery: profile
+GET {{baseUrl}}/api/pets/{{petId}}
+
+### Pet photo bytes or redirect
+GET {{baseUrl}}/api/photos/{{photoId}}
+
+### Filter metadata
+GET {{baseUrl}}/api/meta/filters
+
+### Smart matching
+POST {{baseUrl}}/api/match
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"activity":"medium","home":"house","kids":"no","otherPets":"none","experience":"some","species":"any","age":"any","size":"any","includePairs":true}
+
+### Smart matching: bonded pairs
+POST {{baseUrl}}/api/match/pairs
+Content-Type: application/json
+
+{"activity":"medium","home":"house","kids":"no","otherPets":"none","experience":"some","species":"rabbit","age":"any","size":"any","includePairs":true}
+
+### Smart matching: last saved run
+GET {{baseUrl}}/api/match/last
+Cookie: {{cookie}}
+
+### Saved pets: list
+GET {{baseUrl}}/api/me/saved?page=1&pageSize=12
+Cookie: {{cookie}}
+
+### Saved pets: save / unsave
+POST {{baseUrl}}/api/me/saved/{{petId}}
+Cookie: {{cookie}}
+
+###
+DELETE {{baseUrl}}/api/me/saved/{{petId}}
+Cookie: {{cookie}}
+
+### Adoption application: submit
+POST {{baseUrl}}/api/applications
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"petId":"{{petId}}","applicantName":"Alex Rivera","applicantEmail":"alex@example.test","contactNo":"555-0100","addressLine":"10 Test Street","city":"Portland","state":"OR","postcode":"97201","homeType":"house_with_yard","ownership":"own","householdAdults":2,"hasChildren":false,"youngestChildAge":null,"otherPets":"","experience":"some","hoursAlonePerDay":4,"reason":"Our home and routine are a good fit for this pet."}
+
+### Adopter application list and detail
+GET {{baseUrl}}/api/applications/mine?page=1&pageSize=12
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/applications/{{applicationId}}
+Cookie: {{cookie}}
+
+### Shelter application queue and application detail
+GET {{baseUrl}}/api/applications/shelter?status=submitted&q=Alex&page=1&pageSize=12
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/applications/{{applicationId}}
+Cookie: {{cookie}}
+
+### Start review, update checks, approve, reject, or complete
+PATCH {{baseUrl}}/api/applications/{{applicationId}}/status
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"to":"under_review"}
+
+###
+PATCH {{baseUrl}}/api/applications/{{applicationId}}/checks
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"checks":[{"checkType":"identity","result":"passed"},{"checkType":"address","result":"passed"},{"checkType":"household_agreement","result":"passed"},{"checkType":"landlord_permission","result":"not_applicable"},{"checkType":"home_check","result":"passed"}]}
+
+###
+PATCH {{baseUrl}}/api/applications/{{applicationId}}/status
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"to":"approved"}
+
+###
+PATCH {{baseUrl}}/api/applications/{{applicationId}}/status
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"to":"completed"}
+
+### Reject with required note
+PATCH {{baseUrl}}/api/applications/{{applicationId}}/status
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"to":"rejected","note":"The household has chosen another pet."}
+
+### Shelter adoption summary, records, and CSV export
+GET {{baseUrl}}/api/shelter/summary
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/shelter/adoption-records?page=1&pageSize=12
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/shelter/adoption-records.csv
+Cookie: {{cookie}}
+
+### Register a shelter profile (attach one to three valid PDF/JPG/PNG documents in a REST Client multipart request)
+POST {{baseUrl}}/api/shelters
+Cookie: {{cookie}}
+Content-Type: multipart/form-data; boundary=----PawPalBoundary
+
+------PawPalBoundary
+Content-Disposition: form-data; name="name"
+
+Example Animal Rescue
+------PawPalBoundary
+Content-Disposition: form-data; name="description"
+
+A sample shelter profile.
+------PawPalBoundary
+Content-Disposition: form-data; name="addressLine"
+
+10 Rescue Road
+------PawPalBoundary
+Content-Disposition: form-data; name="city"
+
+Portland
+------PawPalBoundary
+Content-Disposition: form-data; name="state"
+
+OR
+------PawPalBoundary
+Content-Disposition: form-data; name="country"
+
+US
+------PawPalBoundary
+Content-Disposition: form-data; name="contactEmail"
+
+contact@example.test
+------PawPalBoundary
+Content-Disposition: form-data; name="documents"; filename="shelter-proof.pdf"
+Content-Type: application/pdf
+
+< ./fixtures/shelter-proof.pdf
+------PawPalBoundary--
+
+### Shelter profile: read and update own profile
+GET {{baseUrl}}/api/shelters/mine
+Cookie: {{cookie}}
+
+###
+PUT {{baseUrl}}/api/shelters/mine
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"description":"Updated shelter description."}
+
+### Shelter management: pet knowledge and dashboard
+GET {{baseUrl}}/api/shelter/pet-knowledge?species=dog
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/shelter/dashboard
+Cookie: {{cookie}}
+
+### Shelter pets: list, export and create
+GET {{baseUrl}}/api/shelter/pets?page=1&pageSize=12&species=dog&status=available&q=Buddy
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/shelter/pets/export.csv
+Cookie: {{cookie}}
+
+###
+POST {{baseUrl}}/api/shelter/pets
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"name":"Buddy","species":"dog","breed":"Mixed breed","ageMonths":18,"gender":"unknown","size":"medium","colors":[],"description":"A friendly companion.","temperament":["gentle"],"energyLevel":"medium","spayedNeutered":true,"microchipped":false,"houseTrained":true,"specialNeeds":false,"goodWithChildren":"unknown","goodWithDogs":"unknown","goodWithCats":"unknown"}
+
+### Shelter pet: detail, update and soft remove
+GET {{baseUrl}}/api/shelter/pets/{{petId}}
+Cookie: {{cookie}}
+
+###
+PUT {{baseUrl}}/api/shelter/pets/{{petId}}
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"description":"Updated pet description."}
+
+###
+DELETE {{baseUrl}}/api/shelter/pets/{{petId}}
+Cookie: {{cookie}}
+
+### Upload photos (attach 1–6 image files; memory storage, signature checked, processed as JPEG)
+POST {{baseUrl}}/api/shelter/pets/{{petId}}/photos
+Cookie: {{cookie}}
+Content-Type: multipart/form-data; boundary=----PawPalBoundary
+
+------PawPalBoundary
+Content-Disposition: form-data; name="photos"; filename="pet.jpg"
+Content-Type: image/jpeg
+
+< ./pet.jpg
+------PawPalBoundary--
+
+### Photo primary, ordering, and removal
+PATCH {{baseUrl}}/api/shelter/pets/{{petId}}/photos/{{photoId}}/primary
+Cookie: {{cookie}}
+
+###
+PUT {{baseUrl}}/api/shelter/pets/{{petId}}/photos/order
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"photoIds":["{{photoId}}"]}
+
+###
+DELETE {{baseUrl}}/api/shelter/pets/{{petId}}/photos/{{photoId}}
+Cookie: {{cookie}}
+
+### Vaccinations: list and add
+GET {{baseUrl}}/api/shelter/pets/{{petId}}/vaccinations
+Cookie: {{cookie}}
+
+###
+POST {{baseUrl}}/api/shelter/pets/{{petId}}/vaccinations
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"vaccineTypeId":1,"givenOn":"2026-06-01","nextDueOn":"2027-06-01","clinic":"Example Vet"}
+
+###
+DELETE {{baseUrl}}/api/shelter/pets/{{petId}}/vaccinations/{{vaccinationId}}
+Cookie: {{cookie}}
+
+### Reports: create
+POST {{baseUrl}}/api/reports
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"targetType":"pet","targetId":"{{petId}}","reason":"inaccurate_information","details":"The listing details need review."}
+
+### Admin: authorization ping and stats
+GET {{baseUrl}}/api/admin/ping
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/admin/stats
+Cookie: {{cookie}}
+
+### Admin users: list, suspend/activate, remove
+GET {{baseUrl}}/api/admin/users?q=Alex&role=adopter&status=active&page=1&pageSize=12
+Cookie: {{cookie}}
+
+###
+PATCH {{baseUrl}}/api/admin/users/{{userId}}/status
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"status":"suspend"}
+
+###
+DELETE {{baseUrl}}/api/admin/users/{{userId}}
+Cookie: {{cookie}}
+
+### Admin shelters: list, documents, verify or reject
+GET {{baseUrl}}/api/admin/shelters?status=pending
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/admin/shelters/{{shelterId}}/documents
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/admin/documents/{{documentId}}
+Cookie: {{cookie}}
+
+###
+PATCH {{baseUrl}}/api/admin/shelters/{{shelterId}}/verification
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"action":"verify"}
+
+### Admin listings and moderation
+GET {{baseUrl}}/api/admin/pets?q=Buddy&species=dog&page=1&pageSize=12
+Cookie: {{cookie}}
+
+###
+DELETE {{baseUrl}}/api/admin/pets/{{petId}}
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"reason":"Listing requires moderation."}
+
+### Admin applications, reports, and audit log
+GET {{baseUrl}}/api/admin/applications?status=submitted&page=1&pageSize=12
+Cookie: {{cookie}}
+
+###
+GET {{baseUrl}}/api/admin/reports?status=open
+Cookie: {{cookie}}
+
+###
+PATCH {{baseUrl}}/api/admin/reports/{{reportId}}
+Content-Type: application/json
+Cookie: {{cookie}}
+
+{"action":"dismiss","note":"Reviewed and closed."}
+
+###
+GET {{baseUrl}}/api/admin/audit
+Cookie: {{cookie}}

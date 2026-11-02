@@ -1,11 +1,15 @@
-﻿.env
+.env
 .env.*
 !.env.example
 
 node_modules/
 dist/
+server/dist/
+client/dist/
 coverage/
 uploads/
 
 *.log
+*.tsbuildinfo
 .DS_Store
+pnpm-debug.log

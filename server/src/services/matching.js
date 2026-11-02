@@ -44,7 +44,7 @@ function getHomeFit(pet, answers) {
   const home = answers.home;
   const size = petValue(pet, 'size', 'size');
   if (species === 'dog') return HOME_FIT.dog[home]?.[size] ?? 0;
-  return HOME_FIT[species]?.[home] ?? 0;
+  return HOME_FIT[species]?.[home] ?? (['dog', 'cat', 'rabbit'].includes(species) ? 0 : null);
 }
 
 function getExperienceFit(pet, answers) {
@@ -78,7 +78,7 @@ function reasonsFor(fits, pet, answers) {
   if (fits.activity >= 0.8) reasons.push('Energy match');
   if (fits.household >= 0.8 && answers.kids === 'yes') reasons.push('Great with kids');
   if (fits.household >= 0.8 && answers.otherPets !== 'none') reasons.push('Good with your pet');
-  if (fits.home >= 0.8) reasons.push('Fits your home');
+  if (fits.home !== null && fits.home >= 0.8) reasons.push('Fits your home');
   if (fits.experience >= 0.8) reasons.push('Experience fit');
   if (fits.age >= 0.8 && answers.age !== 'any') reasons.push('Age preference');
   if (fits.size >= 0.8 && answers.size !== 'any') reasons.push('Size preference');
@@ -90,7 +90,7 @@ function cautionsFor(fits, pet, answers) {
   const cautions = [];
   if (fits.activity <= 0.4) cautions.push('Needs more exercise than you described');
   if (fits.household <= 0.4) cautions.push('May need a slower introduction to your household');
-  if (fits.home <= 0.4) cautions.push(answers.home === 'apartment' ? 'May find an apartment limiting' : 'May need more room at home');
+  if (fits.home !== null && fits.home <= 0.4) cautions.push(answers.home === 'apartment' ? 'May find an apartment limiting' : 'May need more room at home');
   if (fits.experience <= 0.4) cautions.push('May need a more experienced adopter');
   if (fits.age <= 0.4 && answers.age !== 'any') cautions.push('Outside your preferred age group');
   if (fits.size <= 0.4 && answers.size !== 'any') cautions.push('Outside your preferred size');
@@ -109,12 +109,15 @@ export function rankPets(pets, answers, limit = 12) {
     && petValue(pet, 'goodWithChildren', 'good_with_children') === 'no'));
   const ranked = safePets.map((pet, index) => {
     const fits = getMatchFits(pet, answers);
-    const score = Math.round(Object.entries(MATCH_WEIGHTS)
-      .reduce((sum, [factor, weight]) => sum + weight * fits[factor], 0));
+    const assessedWeights = Object.entries(MATCH_WEIGHTS).filter(([factor]) => fits[factor] !== null);
+    const totalWeight = assessedWeights.reduce((sum, [, weight]) => sum + weight, 0);
+    const score = Math.round(assessedWeights
+      .reduce((sum, [factor, weight]) => sum + weight * fits[factor], 0) / totalWeight * 100);
     return {
       ...pet,
       score,
       fits,
+      unassessed: Object.entries(fits).filter(([, value]) => value === null).map(([factor]) => factor),
       reasons: reasonsFor(fits, pet, answers),
       cautions: cautionsFor(fits, pet, answers),
       _index: index,

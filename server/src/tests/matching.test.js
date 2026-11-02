@@ -79,6 +79,18 @@ describe('smart match scoring (pure fixtures)', () => {
     expect(getMatchFits(makePet({ size: 'small' }), answers).home).toBe(1);
   });
 
+  it('keeps unmodeled species eligible with neutral scoring and unassessed home fit', () => {
+    const hamster = makePet({ id: 'hamster', species: 'hamster' });
+    const ranked = rankPets([hamster], { ...answers, species: 'hamster' });
+    expect(ranked.items).toHaveLength(1);
+    expect(ranked.items[0].score).toBeGreaterThan(0);
+    expect(ranked.items[0].unassessed).toContain('home');
+    expect(ranked.items[0].fits.home).toBeNull();
+    expect(ranked.items[0].cautions).not.toContain('May find an apartment limiting');
+    expect(canPairPets(hamster, makePet({ id: 'hamster-b', species: 'hamster' }))).toBe(true);
+    expect(canPairPets(hamster, makePet({ id: 'bird', species: 'bird' }))).toBe(false);
+  });
+
   it('applies experience difficulty, tolerance, and clamping', () => {
     const hardRabbit = makePet({ species: 'dog', specialNeeds: true, energyLevel: 'high', size: 'large', houseTrained: false });
     expect(getMatchFits(hardRabbit, { ...answers, experience: 'first' }).experience).toBe(0);

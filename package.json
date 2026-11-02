@@ -1,0 +1,27 @@
+{
+  "name": "pawpal",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "node --watch server/src/server.js",
+    "build": "npm run build --workspace=client",
+    "start": "node server/src/server.js",
+    "migrate": "node server/src/db/migrate.js",
+    "migrate:test": "cross-env RUN_ON_TEST_DB=1 node server/src/db/migrate.js",
+    "seed": "node server/src/db/seed.js",
+    "seed:load-test": "cross-env NODE_ENV=test node server/src/db/seedLoadTest.js",
+    "test": "cross-env NODE_ENV=test vitest run",
+    "lint": "node scripts/lint.mjs",
+    "smoke": "cross-env NODE_ENV=test node scripts/e2e-smoke.mjs",
+    "verify": "npm run lint && npm test && npm run build && npm run smoke"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "supertest": "^7.0.0",
+    "vite": "^6.4.4",
+    "vitest": "^5.0.5"
+  }
+}

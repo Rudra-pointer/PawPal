@@ -1,6 +1,8 @@
 // server/src/app.js
 // Express application (separated from server.js so tests can import it cleanly).
 import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -16,6 +18,7 @@ import { sheltersRouter } from './routes/shelters.js';
 import { shelterPetsRouter } from './routes/shelterPets.js';
 import { adminRouter, reportsRouter } from './routes/admin.js';
 import { matchingRouter } from './routes/matching.js';
+import { rateLimit } from './middleware/rateLimit.js';
 
 export const app = express();
 
@@ -26,7 +29,13 @@ if (env.TRUST_PROXY) app.set('trust proxy', 1);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", 'https://fonts.googleapis.com'],
+      styleSrcAttr: ["'unsafe-inline'"],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'https://images.unsplash.com'],
+      connectSrc: ["'self'"],
     },
   },
 }));
@@ -39,8 +48,10 @@ app.use((req, _res, next) => {
   const start = Date.now();
   _res.on('finish', () => {
     const ms = Date.now() - start;
-    if (env.NODE_ENV !== 'test') {
-      console.log(`${req.method} ${req.url} ${_res.statusCode} ${ms}ms`);
+    if (env.NODE_ENV === 'production') {
+      console.log(JSON.stringify({ level: 'info', method: req.method, path: req.path, status: _res.statusCode, durationMs: ms }));
+    } else if (env.NODE_ENV !== 'test') {
+      console.log(`${req.method} ${req.path} ${_res.statusCode} ${ms}ms`);
     }
   });
   next();
@@ -50,6 +61,10 @@ app.use((req, _res, next) => {
 export function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
+
+// Apply the same per-IP API ceiling to health checks and all API paths.
+export const apiRateLimit = rateLimit({ max: 300 });
+app.use('/api', apiRateLimit);
 
 // ── Health endpoint ───────────────────────────────────────────────────────────
 app.get('/api/health', asyncHandler(async (_req, res) => {
@@ -65,6 +80,7 @@ app.get('/api/health', asyncHandler(async (_req, res) => {
 
 // ── API router (future routes attach here) ───────────────────────────────────
 const apiRouter = express.Router();
+apiRouter.use('/auth', rateLimit({ max: 90, keyPrefix: 'auth', code: 'AUTH_RATE_LIMITED', message: 'Too many authentication requests. Please try again later.' }));
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/match', matchingRouter);
 apiRouter.use('/pets', petsRouter);
@@ -86,6 +102,18 @@ app.use('/api/*', (_req, res) => {
     error: { code: 'NOT_FOUND', message: 'The requested API endpoint does not exist.', details: [] },
   });
 });
+
+if (env.NODE_ENV === 'production') {
+  const clientDist = fileURLToPath(new URL('../../client/dist/', import.meta.url));
+  app.use(express.static(clientDist, {
+    index: false,
+    setHeaders(res, filePath) {
+      const isHashedAsset = /[.-][A-Z0-9_-]{8,}\.(?:js|css|svg|png|jpe?g|webp|woff2?)$/i.test(path.basename(filePath));
+      res.setHeader('Cache-Control', isHashedAsset ? 'public, max-age=31536000, immutable' : 'no-cache');
+    },
+  }));
+  app.get('*', (_req, res, next) => res.sendFile(path.join(clientDist, 'index.html'), error => error && next(error)));
+}
 
 // ── Central error handler ─────────────────────────────────────────────────────
 // Maps pg constraint errors to semantically correct HTTP codes.
@@ -117,7 +145,8 @@ app.use((err, _req, res, _next) => {
   const stack   = env.NODE_ENV !== 'production' ? err.stack : undefined;
 
   if (status >= 500) {
-    console.error('[error]', err.message, err.stack);
+    if (env.NODE_ENV === 'production') console.error(JSON.stringify({ level: 'error', code, status }));
+    else console.error('[error]', err.message, err.stack);
   }
 
   res.status(status).json({ error: { code, message, details, ...(stack ? { stack } : {}) } });

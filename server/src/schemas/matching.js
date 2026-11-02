@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { speciesNameSchema } from './species.js';
 
 export const matchAnswersSchema = z.object({
   activity: z.enum(['low', 'medium', 'high']),
@@ -6,7 +7,7 @@ export const matchAnswersSchema = z.object({
   kids: z.enum(['yes', 'no']),
   otherPets: z.enum(['none', 'dog', 'cat']),
   experience: z.enum(['first', 'some', 'expert']),
-  species: z.enum(['dog', 'cat', 'rabbit', 'any']),
+  species: z.union([speciesNameSchema, z.literal('any')]),
   age: z.enum(['baby', 'young', 'adult', 'senior', 'any']),
   size: z.enum(['small', 'medium', 'large', 'any']),
   includePairs: z.boolean().default(false),

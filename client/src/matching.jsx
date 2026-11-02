@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { findMatches, findPetPairs, getLastMatch } from './api/matching.js';
+import { getFilterMetadata } from './api/pets.js';
 import { useScrollReveal } from './hooks/useScrollReveal.js';
 
 const QUESTIONS = [
@@ -46,9 +47,21 @@ export function MatchQuizPage({ onToast }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState(INITIAL_ANSWERS);
+  const [speciesOptions, setSpeciesOptions] = useState(QUESTIONS.find(question => question.key === 'species').options);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const question = QUESTIONS[step];
+  useEffect(() => {
+    let active = true;
+    getFilterMetadata().then(metadata => {
+      if (!active || !metadata.species?.length) return;
+      const icons = { dog: '🐕', cat: '🐈', rabbit: '🐇' };
+      const options = metadata.species.map(item => [item.species, icons[item.species] || '🐾', `${item.species.replace(/\b\w/g, letter => letter.toUpperCase())} · ${item.count} available`]);
+      options.push(['any', '✨', 'I’m open to any species']);
+      setSpeciesOptions(options);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+  const question = step === 5 ? { ...QUESTIONS[step], options: speciesOptions } : QUESTIONS[step];
   const selected = question.preferences ? true : answers[question.key] !== undefined;
   useScrollReveal([step]);
 
@@ -108,8 +121,8 @@ function MatchResult({ pet }) {
     <img src={pet.photo || '/pawpal-placeholder.svg'} alt={pet.name}/>
     <div>
       <h3>{pet.name}</h3>
-      <p>{pet.breed} · {pet.ageGroup} · {pet.city}{pet.state ? `, ${pet.state}` : ''}</p>
-      <div className="result-tags">{pet.reasons.map(reason => <span className="tag" key={reason}>{reason}</span>)}{pet.cautions.map(caution => <span className="tag lav" key={caution}>{caution}</span>)}</div>
+      <p>{pet.species.replace(/\b\w/g, letter => letter.toUpperCase())} · {pet.breed} · {pet.ageGroup} · {pet.city}{pet.state ? `, ${pet.state}` : ''}</p>
+      <div className="result-tags">{pet.reasons.map(reason => <span className="tag" key={reason}>{reason}</span>)}{pet.cautions.map(caution => <span className="tag lav" key={caution}>{caution}</span>)}{pet.unassessed?.includes('home')&&<span className="tag lav">Home compatibility not yet assessed for this species</span>}</div>
       <Link className="btn light small" to={`/pets/${pet.id}`}>Meet {pet.name} →</Link>
     </div>
     <div className="ring" style={{ '--score': `${pet.score}%` }} aria-label={`${pet.score}% compatibility`}><span>{pet.score}%</span></div>
@@ -154,6 +167,7 @@ export function MatchResultsPage({ user, onToast }) {
   }, [result, user, onToast]);
 
   const items = (result?.matches?.items || []).filter(pet => species === 'all' || pet.species === species);
+  const speciesOptions = [...new Set((result?.matches?.items || []).map(pet => pet.species))].sort();
   const pairs = result?.pairs?.items || [];
   const rabbitResults = result?.answers?.species === 'rabbit'
     || (result?.matches?.items || []).some(pet => pet.species === 'rabbit')
@@ -167,7 +181,7 @@ export function MatchResultsPage({ user, onToast }) {
     {!loading && result && <>
       {rabbitResults && <p className="status">Rabbits are social animals and usually do best in pairs</p>}
       {result.matches?.hiddenPetsCount > 0 && <p className="status wait" role="status">{result.matches.hiddenPetsCount} {result.matches.hiddenPetsCount === 1 ? 'pet was' : 'pets were'} hidden because they are not suited to children.</p>}
-      <div className="filter-panel" style={{ maxWidth: 760, margin: '0 auto 18px', padding: 12 }}><label htmlFor="match-species-filter">Species </label><select id="match-species-filter" value={species} onChange={event => setSpecies(event.target.value)}><option value="all">All matches</option><option value="dog">Dogs</option><option value="cat">Cats</option><option value="rabbit">Rabbits</option></select></div>
+      <div className="filter-panel" style={{ maxWidth: 760, margin: '0 auto 18px', padding: 12 }}><label htmlFor="match-species-filter">Species </label><select id="match-species-filter" value={species} onChange={event => setSpecies(event.target.value)}><option value="all">All matches</option>{speciesOptions.map(value=><option key={value} value={value}>{value.replace(/\b\w/g, letter => letter.toUpperCase())}</option>)}</select></div>
       <div className="result-list">{items.map(pet => <MatchResult key={pet.id} pet={pet}/>)}{items.length === 0 && <div className="empty">No pets match this species filter. Choose another species or retake the quiz.</div>}</div>
       {result.answers?.includePairs && <section className="result-list" aria-labelledby="pair-results-title"><div className="section-head"><div><div className="eyebrow">Two-pet households</div><h2 id="pair-results-title">Friends who fit together</h2></div></div>{pairs.length ? pairs.map((pair, index) => <PairResult key={`${pair.pets[0].id}-${pair.pets[1].id}-${index}`} pair={pair}/>) : <div className="empty">No compatible pair is available right now. You can still meet an individual match.</div>}</section>}
       <div style={{ textAlign: 'center', marginTop: 27 }}><Link className="btn light" to="/match" onClick={() => { try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* Optional session storage. */ } }}>Retake quiz</Link></div>

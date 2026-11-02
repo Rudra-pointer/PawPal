@@ -1,0 +1,29 @@
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid #2f6e49;
+  outline-offset: 3px;
+}
+
+@media (min-width: 651px) and (max-width: 980px) {
+  .hero-art { min-height: 610px; }
+}
+
+@media (max-width: 980px) {
+  .topbar { position: relative; }
+  .nav.open {
+    position: absolute;
+    z-index: 80;
+    top: calc(100% + 8px);
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-width: 220px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--card);
+    box-shadow: 0 12px 32px rgba(21, 33, 29, .14);
+  }
+  .nav.open a:not(.nav-cta) { display: block; padding: 10px 12px; }
+}
