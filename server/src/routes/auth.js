@@ -4,11 +4,12 @@ import bcrypt from 'bcryptjs';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { query } from '../db/pool.js';
 import { env } from '../config/env.js';
+import { registrationSchema } from '../schemas/authRegistration.js';
+import { createRegisteredUser } from '../services/authRegistration.js';
 
 const asyncHandler=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 
 export const authRouter = Router();
-const registerSchema=z.object({name:z.string().trim().min(2),email:z.string().email(),userCode:z.string().trim().regex(/^[A-Za-z0-9_.-]{3,30}$/),password:z.string().min(8).regex(/[A-Za-z]/).regex(/[0-9]/),role:z.enum(['adopter','shelter'])});
 const sign=value=>createHmac('sha256',env.JWT_SECRET).update(value).digest('base64url');
 function token(user){const h=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),p=Buffer.from(JSON.stringify({sub:user.id,iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+86400})).toString('base64url');return `${h}.${p}.${sign(`${h}.${p}`)}`}
 function readToken(raw){try{const [h,p,s]=raw.split('.'),expected=sign(`${h}.${p}`);if(!timingSafeEqual(Buffer.from(s),Buffer.from(expected)))return null;const data=JSON.parse(Buffer.from(p,'base64url'));return data.exp>Date.now()/1000?data:null}catch{return null}}
@@ -17,7 +18,7 @@ export const optionalAuth=asyncHandler(async(req,res,next)=>{const raw=req.cooki
 export const requireRole=(...roles)=>[requireAuth,(req,res,next)=>roles.includes(req.user.role)?next():res.status(403).json({error:{code:'FORBIDDEN',message:'You do not have access to this resource.',details:[]}})];
 export function getCookieOptions(config = env) { return { httpOnly:true,sameSite:'lax',secure:config.NODE_ENV==='production'||config.COOKIE_SECURE,path:'/',maxAge:86400000 }; }
 const cookieOptions=getCookieOptions();
-authRouter.post('/register',asyncHandler(async(req,res)=>{const parsed=registerSchema.safeParse(req.body);if(!parsed.success)return res.status(400).json({error:{code:'VALIDATION_ERROR',message:'Please check the highlighted fields.',details:parsed.error.issues}});const d=parsed.data,hash=await bcrypt.hash(d.password,10);const {rows}=await query('INSERT INTO users (user_code,name,email,password_hash,role) VALUES ($1,$2,$3,$4,$5) RETURNING id,user_code,name,email,role,status',[d.userCode,d.name,d.email,hash,d.role]);res.cookie('pawpal_token',token(rows[0]),cookieOptions).status(201).json({user:rows[0]})}));
+authRouter.post('/register',asyncHandler(async(req,res)=>{const parsed=registrationSchema.safeParse(req.body);if(!parsed.success)return res.status(400).json({error:{code:'VALIDATION_ERROR',message:'Please check the highlighted fields.',details:parsed.error.issues}});const user=await createRegisteredUser(parsed.data);res.cookie('pawpal_token',token(user),cookieOptions).status(201).json({user})}));
 const attempts=new Map();
 authRouter.post('/login',asyncHandler(async(req,res)=>{const schema=z.object({identifier:z.string().min(1),password:z.string().min(1)}),p=schema.safeParse(req.body);if(!p.success)return res.status(400).json({error:{code:'VALIDATION_ERROR',message:'Enter your login and password.',details:[]}});const key=`${req.ip}:${p.data.identifier.toLowerCase()}`,now=Date.now(),record=attempts.get(key)||{start:now,count:0};if(now-record.start>900000){record.start=now;record.count=0}if(record.count>=10)return res.status(429).json({error:{code:'RATE_LIMITED',message:'Too many login attempts. Try again later.',details:[]}});record.count++;attempts.set(key,record);const {rows}=await query('SELECT id,user_code,name,email,role,status,password_hash FROM users WHERE lower(email)=lower($1) OR lower(user_code)=lower($1) LIMIT 1',[p.data.identifier]);const user=rows[0],valid=user&&user.status==='active'&&await bcrypt.compare(p.data.password,user.password_hash);if(!valid)return res.status(user&&user.status!=='active'?403:401).json({error:{code:user&&user.status!=='active'?'ACCOUNT_SUSPENDED':'INVALID_CREDENTIALS',message:user&&user.status!=='active'?'This account is unavailable.':'Invalid credentials',details:[]}});await query('UPDATE users SET last_login_at=now() WHERE id=$1',[user.id]);delete user.password_hash;attempts.delete(key);res.cookie('pawpal_token',token(user),cookieOptions).json({user})}));
 authRouter.post('/logout',(_req,res)=>res.clearCookie('pawpal_token',{httpOnly:true,sameSite:'lax',secure:env.NODE_ENV==='production'||env.COOKIE_SECURE,path:'/'}).json({ok:true}));
