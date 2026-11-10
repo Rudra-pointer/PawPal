@@ -2,6 +2,12 @@
 
 PawPal is a pet adoption platform for adopters, shelters, and administrators. It uses React 18 and Vite for the client, Express for the API, and PostgreSQL through parameterized `pg` queries. The reference UI is in `docs/frontend-reference/PawPal_Premium.html` and is preserved as the visual source of truth.
 
+## Live demo
+
+🔗 **[https://pawpal-eczf.onrender.com](https://pawpal-eczf.onrender.com)**
+
+The deployed build is served as a single service (Express API plus the production client bundle). See `docs/DEPLOY.md` for how it is set up.
+
 ## Local setup (about 10 minutes)
 
 1. Install Node.js 20+ and PostgreSQL 13+.
